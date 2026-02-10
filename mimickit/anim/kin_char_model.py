@@ -34,23 +34,8 @@ class Joint():
         return dof_dim
 
     def get_joint_dof(self, dof):
-        # Validate input is a tensor
-        if not isinstance(dof, torch.Tensor):
-            raise TypeError(
-                f"Joint.get_joint_dof() expected torch.Tensor, got {type(dof).__name__}. "
-                f"Joint: {self.name}, type: {self.joint_type}"
-            )
-
         dof_idx = self.dof_idx
         dof_dim = self.get_dof_dim()
-
-        # Validate dof_idx was properly initialized
-        if dof_idx < 0 and dof_dim > 0:
-            raise ValueError(
-                f"Joint '{self.name}' has uninitialized dof_idx={dof_idx} but dof_dim={dof_dim}. "
-                f"Ensure _label_dof_indices() was called during model initialization."
-            )
-
         j_dof = dof[..., dof_idx:dof_idx + dof_dim]
         return j_dof
 
@@ -61,13 +46,6 @@ class Joint():
         return
 
     def dof_to_rot(self, dof):
-        # Validate input is a tensor
-        if not isinstance(dof, torch.Tensor):
-            raise TypeError(
-                f"Joint.dof_to_rot() expected torch.Tensor, got {type(dof).__name__}. "
-                f"Joint: {self.name}, type: {self.joint_type}, dof_idx: {self.dof_idx}"
-            )
-
         rot_shape = list(dof.shape[:-1])
         rot_shape = rot_shape + [4]
         rot = torch.zeros(rot_shape, device=dof.device, dtype=dof.dtype)
@@ -90,13 +68,6 @@ class Joint():
         return rot
 
     def rot_to_dof(self, rot):
-        # Validate input is a tensor
-        if not isinstance(rot, torch.Tensor):
-            raise TypeError(
-                f"Joint.rot_to_dof() expected torch.Tensor, got {type(rot).__name__}. "
-                f"Joint: {self.name}, type: {self.joint_type}"
-            )
-
         dof_dim = self.get_dof_dim()
         dof_shape = list(rot.shape[:-1])
         dof_shape = dof_shape + [dof_dim]
@@ -129,14 +100,6 @@ class KinCharModel():
         assert(len(local_translation) == num_bodies)
         assert(len(local_rotation) == num_bodies)
         assert(len(joints) == num_bodies)
-
-        # Validate all joints are Joint instances
-        for i, joint in enumerate(joints):
-            if joint is not None and not isinstance(joint, Joint):
-                raise TypeError(
-                    f"joints[{i}] expected Joint or None, got {type(joint).__name__}. "
-                    f"Body name: {body_names[i]}"
-                )
 
         self._body_names = body_names
         self._parent_indices = torch.tensor(parent_indices, device=self._device, dtype=torch.long)
@@ -181,33 +144,13 @@ class KinCharModel():
         return len(self._joints)
 
     def dof_to_rot(self, dof):
-        # Validate input is a tensor
-        if not isinstance(dof, torch.Tensor):
-            raise TypeError(
-                f"KinCharModel.dof_to_rot() expected torch.Tensor, got {type(dof).__name__}. "
-                f"dof value: {dof}"
-            )
-
         num_joints = self.get_num_joints()
-
-        # Validate we have joints initialized
-        if num_joints == 0:
-            raise ValueError("KinCharModel has no joints. Ensure init() was called.")
-
         rot_shape = list(dof.shape[:-1])
         rot_shape = rot_shape + [num_joints - 1, 4]
         joint_rot = torch.zeros(rot_shape, device=dof.device, dtype=dof.dtype)
 
         for j in range(1, num_joints):
             joint = self.get_joint(j)
-
-            # Validate joint is properly initialized
-            if not isinstance(joint, Joint):
-                raise TypeError(
-                    f"Expected Joint object at index {j}, got {type(joint).__name__}. "
-                    f"Check _joints initialization in init()."
-                )
-
             j_dof = joint.get_joint_dof(dof)
             j_rot = joint.dof_to_rot(j_dof)
             joint_rot[..., j - 1, :] = j_rot
@@ -215,12 +158,6 @@ class KinCharModel():
         return joint_rot
 
     def rot_to_dof(self, rot):
-        # Validate input is a tensor
-        if not isinstance(rot, torch.Tensor):
-            raise TypeError(
-                f"KinCharModel.rot_to_dof() expected torch.Tensor, got {type(rot).__name__}"
-            )
-
         dof_shape = list(rot.shape[:-2])
         dof_shape = dof_shape + [self._dof_size]
         dof = torch.zeros(dof_shape, device=rot.device, dtype=rot.dtype)
