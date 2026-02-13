@@ -15,6 +15,7 @@ from util.logger import Logger
 import util.mp_util as mp_util
 import util.tb_logger as tb_logger
 import util.torch_util as torch_util
+import util.video_recorder as video_recorder
 import util.wandb_logger as wandb_logger
 
 import learning.distribution_gaussian_diag as distribution_gaussian_diag
@@ -55,6 +56,15 @@ class BaseAgent(torch.nn.Module):
         log_file = os.path.join(out_dir, "log.txt")
         self._logger = self._build_logger(logger_type, log_file, self._config)
 
+        if (logger_type == "wandb" and mp_util.is_root_proc()):
+            try:
+                self._video_recorder = video_recorder.HeadlessVideoRecorder(self._env, self, self._device)
+            except Exception as e:
+                print(f"[BaseAgent] Failed to create video recorder: {e}")
+                self._video_recorder = None
+        else:
+            self._video_recorder = None
+
         if (save_int_models):
             int_out_dir = os.path.join(out_dir, "int_models")
             if (mp_util.is_root_proc() and not os.path.exists(int_out_dir)):
@@ -81,6 +91,12 @@ class BaseAgent(torch.nn.Module):
             if (output_iter):
                 self._logger.write_log()
                 self._output_train_model(self._iter, out_model_file, int_out_dir)
+
+                if (self._video_recorder is not None):
+                    try:
+                        self._video_recorder.record_and_log(self._iter, sample_count=self._sample_count)
+                    except Exception as e:
+                        print(f"[BaseAgent] Video recording failed: {e}")
 
                 self._train_return_tracker.reset()
                 self._curr_obs, self._curr_info = self._reset_envs()
