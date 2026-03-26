@@ -217,15 +217,17 @@ class PPOAgent(base_agent.BaseAgent):
         actor_loss1 = adv * torch.clamp(a_ratio, 1.0 - self._ppo_clip_ratio, 1.0 + self._ppo_clip_ratio)
         actor_loss = torch.minimum(actor_loss0, actor_loss1)
         actor_loss = -torch.mean(actor_loss)
-        
+
         clip_frac = (torch.abs(a_ratio - 1.0) > self._ppo_clip_ratio).type(torch.float)
         clip_frac = torch.mean(clip_frac)
         imp_ratio = torch.mean(a_ratio)
-        
+        approx_kl = (old_a_logp - a_logp).mean()
+
         info = {
             "actor_loss": actor_loss,
             "clip_frac": clip_frac.detach(),
-            "imp_ratio": imp_ratio.detach()
+            "imp_ratio": imp_ratio.detach(),
+            "approx_kl": approx_kl.detach(),
         }
 
         if (self._action_bound_weight != 0):
